@@ -11,17 +11,20 @@ import { ThemeProvider } from "styled-components";
 import { ApolloProvider } from "react-apollo-hooks";
 import options from "./apollo";
 import styles from "./styles";
+import NavController from "./components/NavController";
+import { AuthProvider } from "./AuthContext";
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [client, setClient] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
   const preLoad = async () => {
+    // await AsyncStorage.clear() // Forcing log out
     try {
       await Font.loadAsync({
         ...Ionicons.font
       });
-      await Asset.loadAsync([require("./assets/Instagram.png")]);
+      await Asset.loadAsync([require("./assets/logo.png")]);
       const cache = new InMemoryCache();
       await persistCache({
         cache,
@@ -29,10 +32,16 @@ export default function App() {
       });
       const client = new ApolloClient({
         cache,
+        request: async operation => {
+          const token = await AsyncStorage.getItem("jwt");
+          return operation.setContext({
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        },
         ...options
       });
       const isLoggedIn = await AsyncStorage.getItem("isLoggedIn");
-      if (isLoggedIn === null || isLoggedIn === "false") {
+      if (!isLoggedIn || isLoggedIn === "false") {
         setIsLoggedIn(false);
       } else {
         setIsLoggedIn(true);
@@ -47,38 +56,12 @@ export default function App() {
     preLoad();
   }, []);
 
-  const logUserIn = async () => {
-    try {
-      await AsyncStorage.setItem("isLoggedIn", "true");
-      setIsLoggedIn(true);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const logUserOut = async () => {
-    try {
-      await AsyncStorage.setItem("isLoggedIn", "false");
-      setIsLoggedIn(false);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
   return loaded && client && isLoggedIn !== null
     ? <ApolloProvider client={client}>
         <ThemeProvider theme={styles}>
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-          >
-            {isLoggedIn === true
-              ? <TouchableOpacity onPress={logUserOut}>
-                  <Text>Log out</Text>
-                </TouchableOpacity>
-              : <TouchableOpacity onPress={logUserIn}>
-                  <Text>Log in</Text>
-                </TouchableOpacity>}
-          </View>
+          <AuthProvider isLoggedIn={isLoggedIn}>
+            <NavController />
+          </AuthProvider>
         </ThemeProvider>
       </ApolloProvider>
     : <AppLoading />;
