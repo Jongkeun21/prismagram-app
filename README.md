@@ -1,4 +1,3 @@
 #Pirsmagram ios & Android App
 
-### **Instagram**
-clone coding
+### **Instagram** clone coding
